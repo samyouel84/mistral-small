@@ -52,6 +52,9 @@ The application automatically:
 - Maintains consistent formatting
 - Preserves chat context
 
+## Author
+Samuel Morrison
+
 ## Licence
 
 This project is licensed under the MIT Licence - see the [LICENCE](LICENCE) file for details.
