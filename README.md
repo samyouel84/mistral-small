@@ -38,6 +38,7 @@ cargo run
 - Type your message and press Enter to send
 - Use Up/Down arrow keys to navigate command history
 - Type 'exit' to quit the application
+- Type 'clear' to clear the screen
 
 ## Configuration
 

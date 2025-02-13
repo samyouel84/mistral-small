@@ -87,7 +87,7 @@ async fn chat_loop(client: MistralClient) -> Result<()> {
         .subsequent_indent("  ");
 
     // Print wrapped welcome message
-    let welcome_msg = "Welcome to Mistral Chat! Type your message (or 'exit' to quit):";
+    let welcome_msg = "Welcome to Mistral Chat! Type your message ('exit' to quit, 'clear' to clear screen):";
     for line in wrap(welcome_msg, &wrap_options) {
         println!("{}", line.green());
     }
@@ -118,6 +118,9 @@ async fn chat_loop(client: MistralClient) -> Result<()> {
                     // Save history before exiting
                     let _ = rl.save_history(&history_file);
                     break;
+                } else if input.eq_ignore_ascii_case("clear") {
+                    clearscreen::clear()?;
+                    continue;
                 }
 
                 // Add valid input to history
