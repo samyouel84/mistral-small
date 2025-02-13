@@ -1,4 +1,4 @@
-# Mistral Chat CLI
+# Mistral Chat CLI Rust
 
 A lightning-fast command-line interface for chatting with Mistral AI's language models.
 
