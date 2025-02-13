@@ -1,6 +1,6 @@
 # Release Notes
 
-## v0.1.0 (2024-02-14)
+## v0.1.0 (2025-02-13)
 
 ### Initial Release 🚀
 
