@@ -1,6 +1,41 @@
 # Release Notes
 
-## v0.1.0 (2025-02-13)
+## Version 0.2.0 (2024-03-20)
+
+### Major Features
+- Added comprehensive syntax highlighting support for 50+ programming languages
+- Implemented context-aware language detection from user queries
+- Enhanced code block rendering with improved formatting
+
+### Language Support
+Added support for multiple programming language categories:
+- Systems Programming (Rust, C++, C#, C, Assembly)
+- Web Development (JavaScript, TypeScript, HTML, CSS, SCSS)
+- Scripting Languages (Python, Ruby, Perl, Lua)
+- JVM Languages (Java, Kotlin, Scala, Groovy)
+- Mobile Development (Swift, Kotlin Android, Dart/Flutter)
+- Data & ML (R, Julia, MATLAB)
+- Databases (SQL variants, MongoDB)
+- Configuration & Data Formats (JSON, YAML, TOML)
+- Modern Languages (Go, Elixir, Haskell, Zig)
+- Build & Config (Makefile, CMake, Gradle)
+- Version Control (Git-related)
+- Markup (Markdown, LaTeX, RST)
+- Protocol & Schema (Protobuf, GraphQL)
+
+### Improvements
+- Better language detection from user queries
+- Improved fallback handling for unknown languages
+- Enhanced code block formatting and indentation
+- Added support for multiple code blocks with different languages in the same response
+
+### Technical Updates
+- Refactored syntax highlighting logic for better maintainability
+- Improved error handling for syntax highlighting failures
+- Added language hint extraction from user queries
+- Updated documentation with new features and examples
+
+## Version 0.1.0 (Initial Release)
 
 ### Initial Release 🚀
 

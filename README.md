@@ -1,70 +1,81 @@
-# Mistral Chat CLI Rust
+# Mistral Chat CLI
 
-A lightning-fast command-line interface for chatting with Mistral AI's language models.
+A command-line interface for interacting with Mistral AI's language models, featuring rich markdown rendering and advanced syntax highlighting.
 
 ## Features
 
-- Blazingly fast responses
-- Clean, colourised output
-- Command history with persistence
-- Smart text wrapping for readability
-- Secure API key handling via environment variables
-- Rich markdown rendering support:
-  - Code blocks
-  - Lists
-  - Bold and italic text
-  - Inline code
+* 🎨 **Rich Syntax Highlighting**
+  * Support for 50+ programming languages and file formats
+  * Context-aware language detection from user queries
+  * Automatic fallback for unknown languages
+  * Categories include:
+    - Systems Programming (Rust, C++, C#, etc.)
+    - Web Development (JavaScript, TypeScript, HTML, CSS)
+    - Scripting Languages (Python, Ruby, Perl)
+    - JVM Languages (Java, Kotlin, Scala)
+    - Mobile Development (Swift, Flutter/Dart)
+    - Data & ML (R, Julia, MATLAB)
+    - And many more!
 
-## Prerequisites
+* 📝 **Markdown Rendering**
+  * Beautiful terminal formatting
+  * Support for lists, code blocks, and emphasis
+  * Proper indentation and text wrapping
 
-- Rust (latest stable version)
-- A Mistral AI API key
+* 💻 **Terminal Features**
+  * Command history with persistent storage
+  * Clear screen and conversation management
+  * Proper terminal width detection
+  * Color-coded output
 
 ## Installation
 
-1. Clone the repository:
-```bash
-git clone https://github.com/yourusername/mistral-small.git
-cd mistral-small
-```
-
-2. Create a `.env` file in the project root and add your Mistral AI API key:
-```bash
-MISTRAL_API_KEY=your-api-key-here
-```
-
-3. Build and run the project:
-```bash
-cargo run
-```
+1. Make sure you have Rust installed
+2. Clone this repository
+3. Create a `.env` file with your Mistral API key:
+   ```
+   MISTRAL_API_KEY=your_api_key_here
+   ```
+4. Build and run:
+   ```bash
+   cargo build --release
+   cargo run
+   ```
 
 ## Usage
 
-- Type your message and press Enter to send
-- Use Up/Down arrow keys to navigate command history
-- Type 'exit' to quit the application
-- Type 'clear' to clear the screen
-- Type 'new' to start a fresh conversation (clears chat history with AI)
+Available commands:
+* `exit` - quit the application
+* `clear` - clear the screen
+* `new` - start a fresh conversation
+
+Simply type your questions or prompts, and the AI will respond with properly formatted and syntax-highlighted responses.
+
+For code-related queries, you can mention the programming language in your question to get proper syntax highlighting:
+```
+> Show me a Python function for bubble sort
+> Write a Rust example of reading a file
+> Give me a JavaScript fetch example
+```
 
 ## Configuration
 
-The application stores:
-- Command history in `~/.mistral_history`
-- API key in the `.env` file
+The application stores its configuration in:
+* Command history: `~/.mistral_history`
+* API Key: `.env` file in the project directory
 
-## Customisation
+## Requirements
 
-The application automatically:
-- Adapts to your terminal width
-- Maintains consistent formatting
-- Preserves chat context
+* Rust 1.70 or higher
+* Terminal with ANSI color support
+* Internet connection for API access
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Author
 Samuel Morrison
-
-## Licence
-
-This project is licensed under the MIT Licence - see the [LICENCE](LICENCE) file for details.
 
 ## Contributing
 
