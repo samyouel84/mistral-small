@@ -9,6 +9,7 @@ use std::env;
 use std::io::{self, Write};
 use textwrap::{wrap, Options};
 use tokio;
+use pulldown_cmark::{Parser, Event, Tag};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct ChatMessage {
@@ -68,6 +69,71 @@ impl MistralClient {
 
         Ok(response.choices[0].message.content.clone())
     }
+}
+
+fn render_markdown(text: &str, wrap_options: &Options) -> String {
+    let parser = Parser::new(text);
+    let mut output = String::new();
+    let mut in_code_block = false;
+
+    for event in parser {
+        match event {
+            Event::Start(Tag::CodeBlock(_)) => {
+                in_code_block = true;
+                output.push('\n');
+            }
+            Event::End(Tag::CodeBlock(_)) => {
+                in_code_block = false;
+                output.push('\n');
+            }
+            Event::Start(Tag::List(_)) => {
+                output.push('\n');
+            }
+            Event::End(Tag::List(_)) => {
+                output.push('\n');
+            }
+            Event::Start(Tag::Item) => {
+                output.push_str("• ");
+            }
+            Event::Start(Tag::Emphasis) => {
+                output.push_str("\x1B[3m"); // Italic
+            }
+            Event::End(Tag::Emphasis) => {
+                output.push_str("\x1B[23m"); // Reset italic
+            }
+            Event::Start(Tag::Strong) => {
+                output.push_str("\x1B[1m"); // Bold
+            }
+            Event::End(Tag::Strong) => {
+                output.push_str("\x1B[22m"); // Reset bold
+            }
+            Event::Code(text) => {
+                output.push('`');
+                output.push_str(&text);
+                output.push('`');
+            }
+            Event::Text(text) => {
+                if in_code_block {
+                    // Indent code blocks
+                    for line in text.lines() {
+                        output.push_str("    ");
+                        output.push_str(line);
+                        output.push('\n');
+                    }
+                } else {
+                    output.push_str(&text);
+                }
+            }
+            Event::SoftBreak => {
+                output.push(' ');
+            }
+            Event::HardBreak => {
+                output.push('\n');
+            }
+            _ => {}
+        }
+    }
+    output.trim().to_string()
 }
 
 async fn chat_loop(client: MistralClient) -> Result<()> {
@@ -151,10 +217,22 @@ async fn chat_loop(client: MistralClient) -> Result<()> {
                         println!("{}", input);
                         println!();
                         
-                        // Print the response
-                        let response_lines: Vec<_> = wrap(&response, &wrap_options).into_iter().collect();
+                        // Print the response with markdown rendering
+                        let rendered_response = render_markdown(&response, &wrap_options);
+                        let response_lines: Vec<_> = rendered_response.lines().collect();
+                        
                         for line in response_lines {
-                            println!("{}", line.cyan());
+                            if line.trim().is_empty() {
+                                println!();
+                            } else if line.starts_with("    ") {
+                                // Don't wrap code blocks
+                                println!("{}", line.cyan());
+                            } else {
+                                // Wrap all other lines
+                                for wrapped_line in wrap(line, &wrap_options) {
+                                    println!("{}", wrapped_line.cyan());
+                                }
+                            }
                         }
                         println!();
 
