@@ -48,13 +48,159 @@ impl MistralClient {
         Self { client, api_key }
     }
 
-    async fn send_message(&self, messages: Vec<ChatMessage>) -> Result<String> {
+    fn extract_language_hint(input: &str) -> Option<String> {
+        let input = input.to_lowercase();
+        let keywords = [
+            // Systems Programming
+            ("rust", "rust"),
+            ("cpp", "cpp"),
+            ("c++", "cpp"),
+            ("c#", "cs"),
+            ("csharp", "cs"),
+            ("c lang", "c"),
+            (" c ", "c"),
+            ("objective-c", "objc"),
+            ("objc", "objc"),
+            ("assembly", "asm"),
+            ("asm", "asm"),
+            
+            // Web Development
+            ("javascript", "javascript"),
+            ("js", "javascript"),
+            ("typescript", "typescript"),
+            ("ts", "typescript"),
+            ("html", "html"),
+            ("css", "css"),
+            ("scss", "scss"),
+            ("sass", "scss"),
+            ("less", "less"),
+            ("php", "php"),
+            ("webassembly", "wasm"),
+            ("wasm", "wasm"),
+            
+            // Scripting Languages
+            ("python", "python"),
+            ("py", "python"),
+            ("ruby", "ruby"),
+            ("perl", "perl"),
+            ("lua", "lua"),
+            ("powershell", "powershell"),
+            ("ps1", "powershell"),
+            ("shell", "shell"),
+            ("bash", "shell"),
+            ("zsh", "shell"),
+            ("fish", "shell"),
+            
+            // JVM Languages
+            ("java", "java"),
+            ("kotlin", "kotlin"),
+            ("scala", "scala"),
+            ("groovy", "groovy"),
+            ("clojure", "clojure"),
+            
+            // Mobile Development
+            ("swift", "swift"),
+            ("kotlin android", "kotlin"),
+            ("objective-c", "objc"),
+            ("dart", "dart"),
+            ("flutter", "dart"),
+            
+            // Data & ML
+            ("r lang", "r"),
+            (" r ", "r"),
+            ("julia", "julia"),
+            ("matlab", "matlab"),
+            ("octave", "matlab"),
+            
+            // Databases
+            ("sql", "sql"),
+            ("mysql", "sql"),
+            ("postgresql", "sql"),
+            ("postgres", "sql"),
+            ("plsql", "sql"),
+            ("oracle", "sql"),
+            ("tsql", "sql"),
+            ("mongodb", "javascript"),  // For MongoDB queries
+            
+            // Configuration & Data Formats
+            ("json", "json"),
+            ("yaml", "yaml"),
+            ("yml", "yaml"),
+            ("toml", "toml"),
+            ("xml", "xml"),
+            ("ini", "ini"),
+            ("dockerfile", "dockerfile"),
+            ("docker", "dockerfile"),
+            
+            // Modern Languages
+            ("go", "go"),
+            ("golang", "go"),
+            ("elixir", "elixir"),
+            ("erlang", "erlang"),
+            ("haskell", "haskell"),
+            ("ocaml", "ocaml"),
+            ("f#", "fsharp"),
+            ("fsharp", "fsharp"),
+            ("nim", "nim"),
+            ("crystal", "crystal"),
+            ("zig", "zig"),
+            
+            // Build & Config
+            ("makefile", "makefile"),
+            ("cmake", "cmake"),
+            ("gradle", "gradle"),
+            ("maven", "xml"),
+            ("pom", "xml"),
+            
+            // Version Control
+            ("git", "git"),
+            ("gitignore", "gitignore"),
+            ("gitconfig", "gitconfig"),
+            
+            // Markup
+            ("markdown", "markdown"),
+            ("md", "markdown"),
+            ("tex", "tex"),
+            ("latex", "tex"),
+            ("restructuredtext", "rst"),
+            ("rst", "rst"),
+            ("asciidoc", "asciidoc"),
+            
+            // Protocol & Schema
+            ("protobuf", "protobuf"),
+            ("proto", "protobuf"),
+            ("thrift", "thrift"),
+            ("graphql", "graphql"),
+            ("gql", "graphql"),
+        ];
+
+        for (keyword, lang) in keywords.iter() {
+            if input.contains(keyword) {
+                return Some(lang.to_string());
+            }
+        }
+
+        // Check for common programming questions
+        if input.contains("code") || input.contains("function") || input.contains("program") 
+            || input.contains("algorithm") || input.contains("class") || input.contains("method") {
+            return Some("txt".to_string());
+        }
+
+        None
+    }
+
+    async fn send_message(&self, messages: Vec<ChatMessage>) -> Result<(String, Option<String>)> {
         let mut headers = HeaderMap::new();
         headers.insert(
             AUTHORIZATION,
             HeaderValue::from_str(&format!("Bearer {}", self.api_key))?,
         );
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+
+        // Extract language hint from the last user message
+        let language_hint = messages.last()
+            .filter(|msg| msg.role == "user")
+            .and_then(|msg| Self::extract_language_hint(&msg.content));
 
         let request = ChatRequest {
             model: "mistral-small".to_string(),
@@ -71,7 +217,7 @@ impl MistralClient {
             .json::<ChatResponse>()
             .await?;
 
-        Ok(response.choices[0].message.content.clone())
+        Ok((response.choices[0].message.content.clone(), language_hint))
     }
 }
 
@@ -228,6 +374,124 @@ impl<'a> MarkdownRenderer<'a> {
             current.clear();
         }
     }
+
+    fn render_with_hint(&self, text: &str, language_hint: Option<&str>) -> String {
+        let theme = &self.theme_set.themes["base16-ocean.dark"];
+        let parser = Parser::new(text);
+        let mut output = String::new();
+        let mut in_code_block = false;
+        let mut in_list = false;
+        let mut current_paragraph = String::new();
+        let mut current_language = String::new();
+
+        for event in parser {
+            match event {
+                Event::Start(Tag::CodeBlock(kind)) => {
+                    self.flush_paragraph(&mut output, &mut current_paragraph);
+                    in_code_block = true;
+                    current_language = match kind {
+                        CodeBlockKind::Fenced(lang) if !lang.is_empty() => lang.to_string(),
+                        _ => language_hint.unwrap_or("txt").to_string(),
+                    };
+                    output.push('\n');
+                }
+                Event::End(Tag::CodeBlock(_)) => {
+                    in_code_block = false;
+                    current_language.clear();
+                    output.push('\n');
+                }
+                Event::Start(Tag::List(_)) => {
+                    self.flush_paragraph(&mut output, &mut current_paragraph);
+                    in_list = true;
+                }
+                Event::End(Tag::List(_)) => {
+                    in_list = false;
+                    output.push('\n');
+                }
+                Event::Start(Tag::Item) => {
+                    self.flush_paragraph(&mut output, &mut current_paragraph);
+                    current_paragraph.push_str("• ");
+                }
+                Event::End(Tag::Item) => {
+                    self.flush_paragraph(&mut output, &mut current_paragraph);
+                }
+                Event::Start(Tag::Paragraph) => {
+                    if !current_paragraph.is_empty() {
+                        self.flush_paragraph(&mut output, &mut current_paragraph);
+                    }
+                }
+                Event::End(Tag::Paragraph) => {
+                    self.flush_paragraph(&mut output, &mut current_paragraph);
+                    if !in_list {
+                        output.push('\n');
+                    }
+                }
+                Event::Start(Tag::Emphasis) => {
+                    current_paragraph.push_str("\x1B[3m"); // Italic
+                }
+                Event::End(Tag::Emphasis) => {
+                    current_paragraph.push_str("\x1B[23m"); // Reset italic
+                }
+                Event::Start(Tag::Strong) => {
+                    current_paragraph.push_str("\x1B[1m"); // Bold
+                }
+                Event::End(Tag::Strong) => {
+                    current_paragraph.push_str("\x1B[22m"); // Reset bold
+                }
+                Event::Code(text) => {
+                    current_paragraph.push('`');
+                    current_paragraph.push_str(&text);
+                    current_paragraph.push('`');
+                }
+                Event::Text(text) => {
+                    if in_code_block {
+                        let syntax = if current_language.is_empty() {
+                            language_hint
+                                .and_then(|lang| self.syntax_set.find_syntax_by_token(lang))
+                                .or_else(|| language_hint.and_then(|lang| self.syntax_set.find_syntax_by_extension(lang)))
+                                .unwrap_or_else(|| self.syntax_set.find_syntax_plain_text())
+                        } else {
+                            self.syntax_set
+                                .find_syntax_by_token(&current_language)
+                                .or_else(|| self.syntax_set.find_syntax_by_extension(&current_language))
+                                .or_else(|| language_hint.and_then(|lang| self.syntax_set.find_syntax_by_token(lang)))
+                                .or_else(|| language_hint.and_then(|lang| self.syntax_set.find_syntax_by_extension(lang)))
+                                .unwrap_or_else(|| self.syntax_set.find_syntax_plain_text())
+                        };
+
+                        let mut highlighter = HighlightLines::new(syntax, theme);
+                        
+                        for line in LinesWithEndings::from(&text) {
+                            match highlighter.highlight_line(line, &self.syntax_set) {
+                                Ok(ranges) => {
+                                    output.push_str("    "); // Indent
+                                    let escaped = as_24_bit_terminal_escaped(&ranges[..], false);
+                                    output.push_str(&escaped);
+                                }
+                                Err(_) => {
+                                    output.push_str("    ");
+                                    output.push_str(line);
+                                }
+                            }
+                        }
+                    } else {
+                        current_paragraph.push_str(&text);
+                    }
+                }
+                Event::SoftBreak => {
+                    current_paragraph.push(' ');
+                }
+                Event::HardBreak => {
+                    self.flush_paragraph(&mut output, &mut current_paragraph);
+                    output.push('\n');
+                }
+                _ => {}
+            }
+        }
+
+        self.flush_paragraph(&mut output, &mut current_paragraph);
+        output.trim_end().to_string()
+    }
 }
 
 async fn chat_loop(client: MistralClient) -> Result<()> {
@@ -298,14 +562,14 @@ async fn chat_loop(client: MistralClient) -> Result<()> {
                 io::stdout().flush()?;
 
                 match client.send_message(messages.clone()).await {
-                    Ok(response) => {
+                    Ok((response, language_hint)) => {
                         clearscreen::clear()?;
                         
                         print!("{}", "> ".blue().bold());
                         println!("{}", input);
                         println!();
                         
-                        print!("{}", renderer.render(&response).cyan());
+                        print!("{}", renderer.render_with_hint(&response, language_hint.as_deref()).cyan());
                         println!();
                         println!();
 
