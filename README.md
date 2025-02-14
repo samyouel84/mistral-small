@@ -72,7 +72,7 @@ The application stores its configuration in:
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT Licence - see the LICENCE file for details.
 
 ## Author
 Samuel Morrison
