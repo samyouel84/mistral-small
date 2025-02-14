@@ -1,6 +1,6 @@
 # Release Notes
 
-## Version 0.2.0 (2024-03-20)
+## Version 0.2.0 (2025-02-14)
 
 ### Major Features
 - Added comprehensive syntax highlighting support for 50+ programming languages
