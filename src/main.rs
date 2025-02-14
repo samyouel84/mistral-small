@@ -9,7 +9,11 @@ use std::env;
 use std::io::{self, Write};
 use textwrap::{wrap, Options};
 use tokio;
-use pulldown_cmark::{Parser, Event, Tag};
+use pulldown_cmark::{Parser, Event, Tag, CodeBlockKind};
+use syntect::easy::HighlightLines;
+use syntect::highlighting::ThemeSet;
+use syntect::parsing::SyntaxSet;
+use syntect::util::{as_24_bit_terminal_escaped, LinesWithEndings};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct ChatMessage {
@@ -71,114 +75,158 @@ impl MistralClient {
     }
 }
 
-fn render_markdown(text: &str, wrap_options: &Options) -> String {
-    let parser = Parser::new(text);
-    let mut output = String::new();
-    let mut in_code_block = false;
-    let mut in_list = false;
-    let mut current_paragraph = String::new();
+struct MarkdownRenderer<'a> {
+    syntax_set: SyntaxSet,
+    theme_set: ThemeSet,
+    wrap_options: Options<'a>,
+}
 
-    for event in parser {
-        match event {
-            Event::Start(Tag::CodeBlock(_)) => {
-                flush_paragraph(&mut output, &mut current_paragraph, wrap_options);
-                in_code_block = true;
-                output.push('\n');
-            }
-            Event::End(Tag::CodeBlock(_)) => {
-                in_code_block = false;
-                output.push('\n');
-            }
-            Event::Start(Tag::List(_)) => {
-                flush_paragraph(&mut output, &mut current_paragraph, wrap_options);
-                in_list = true;
-            }
-            Event::End(Tag::List(_)) => {
-                in_list = false;
-                output.push('\n');
-            }
-            Event::Start(Tag::Item) => {
-                flush_paragraph(&mut output, &mut current_paragraph, wrap_options);
-                current_paragraph.push_str("• ");
-            }
-            Event::End(Tag::Item) => {
-                flush_paragraph(&mut output, &mut current_paragraph, wrap_options);
-            }
-            Event::Start(Tag::Paragraph) => {
-                if !current_paragraph.is_empty() {
-                    flush_paragraph(&mut output, &mut current_paragraph, wrap_options);
-                }
-            }
-            Event::End(Tag::Paragraph) => {
-                flush_paragraph(&mut output, &mut current_paragraph, wrap_options);
-                if !in_list {
-                    output.push('\n');
-                }
-            }
-            Event::Start(Tag::Emphasis) => {
-                current_paragraph.push_str("\x1B[3m"); // Italic
-            }
-            Event::End(Tag::Emphasis) => {
-                current_paragraph.push_str("\x1B[23m"); // Reset italic
-            }
-            Event::Start(Tag::Strong) => {
-                current_paragraph.push_str("\x1B[1m"); // Bold
-            }
-            Event::End(Tag::Strong) => {
-                current_paragraph.push_str("\x1B[22m"); // Reset bold
-            }
-            Event::Code(text) => {
-                current_paragraph.push('`');
-                current_paragraph.push_str(&text);
-                current_paragraph.push('`');
-            }
-            Event::Text(text) => {
-                if in_code_block {
-                    // Indent code blocks
-                    for line in text.lines() {
-                        output.push_str("    ");
-                        output.push_str(line);
-                        output.push('\n');
-                    }
-                } else {
-                    current_paragraph.push_str(&text);
-                }
-            }
-            Event::SoftBreak => {
-                current_paragraph.push(' ');
-            }
-            Event::HardBreak => {
-                flush_paragraph(&mut output, &mut current_paragraph, wrap_options);
-                output.push('\n');
-            }
-            _ => {}
+impl<'a> MarkdownRenderer<'a> {
+    fn new(width: usize) -> Self {
+        let wrap_options = Options::new(width)
+            .initial_indent("  ")
+            .subsequent_indent("  ");
+            
+        Self {
+            syntax_set: SyntaxSet::load_defaults_newlines(),
+            theme_set: ThemeSet::load_defaults(),
+            wrap_options,
         }
     }
 
-    // Handle any remaining text
-    flush_paragraph(&mut output, &mut current_paragraph, wrap_options);
-    output.trim_end().to_string()
-}
+    fn render(&self, text: &str) -> String {
+        let theme = &self.theme_set.themes["base16-ocean.dark"];
+        let parser = Parser::new(text);
+        let mut output = String::new();
+        let mut in_code_block = false;
+        let mut in_list = false;
+        let mut current_paragraph = String::new();
+        let mut current_language = String::new();
 
-fn flush_paragraph(output: &mut String, current: &mut String, wrap_options: &Options) {
-    if !current.is_empty() {
-        if current.starts_with('•') {
-            // For list items, use special indentation
-            let mut list_options = wrap_options.clone();
-            list_options.initial_indent = "  ";  // 2 spaces for initial bullet
-            list_options.subsequent_indent = "    "; // 4 spaces for wrapped lines
-            for line in wrap(current, &list_options) {
-                output.push_str(&line);
-                output.push('\n');
-            }
-        } else {
-            // For normal paragraphs
-            for line in wrap(current, wrap_options) {
-                output.push_str(&line);
-                output.push('\n');
+        for event in parser {
+            match event {
+                Event::Start(Tag::CodeBlock(kind)) => {
+                    self.flush_paragraph(&mut output, &mut current_paragraph);
+                    in_code_block = true;
+                    current_language = match kind {
+                        CodeBlockKind::Fenced(lang) => lang.to_string(),
+                        _ => "txt".to_string(),
+                    };
+                    output.push('\n');
+                }
+                Event::End(Tag::CodeBlock(_)) => {
+                    in_code_block = false;
+                    current_language.clear();
+                    output.push('\n');
+                }
+                Event::Start(Tag::List(_)) => {
+                    self.flush_paragraph(&mut output, &mut current_paragraph);
+                    in_list = true;
+                }
+                Event::End(Tag::List(_)) => {
+                    in_list = false;
+                    output.push('\n');
+                }
+                Event::Start(Tag::Item) => {
+                    self.flush_paragraph(&mut output, &mut current_paragraph);
+                    current_paragraph.push_str("• ");
+                }
+                Event::End(Tag::Item) => {
+                    self.flush_paragraph(&mut output, &mut current_paragraph);
+                }
+                Event::Start(Tag::Paragraph) => {
+                    if !current_paragraph.is_empty() {
+                        self.flush_paragraph(&mut output, &mut current_paragraph);
+                    }
+                }
+                Event::End(Tag::Paragraph) => {
+                    self.flush_paragraph(&mut output, &mut current_paragraph);
+                    if !in_list {
+                        output.push('\n');
+                    }
+                }
+                Event::Start(Tag::Emphasis) => {
+                    current_paragraph.push_str("\x1B[3m"); // Italic
+                }
+                Event::End(Tag::Emphasis) => {
+                    current_paragraph.push_str("\x1B[23m"); // Reset italic
+                }
+                Event::Start(Tag::Strong) => {
+                    current_paragraph.push_str("\x1B[1m"); // Bold
+                }
+                Event::End(Tag::Strong) => {
+                    current_paragraph.push_str("\x1B[22m"); // Reset bold
+                }
+                Event::Code(text) => {
+                    current_paragraph.push('`');
+                    current_paragraph.push_str(&text);
+                    current_paragraph.push('`');
+                }
+                Event::Text(text) => {
+                    if in_code_block {
+                        let syntax = if current_language.is_empty() {
+                            self.syntax_set.find_syntax_plain_text()
+                        } else {
+                            self.syntax_set
+                                .find_syntax_by_token(&current_language)
+                                .or_else(|| self.syntax_set.find_syntax_by_extension(&current_language))
+                                .unwrap_or_else(|| self.syntax_set.find_syntax_plain_text())
+                        };
+
+                        let mut highlighter = HighlightLines::new(syntax, theme);
+                        
+                        for line in LinesWithEndings::from(&text) {
+                            match highlighter.highlight_line(line, &self.syntax_set) {
+                                Ok(ranges) => {
+                                    output.push_str("    "); // Indent
+                                    let escaped = as_24_bit_terminal_escaped(&ranges[..], false);
+                                    output.push_str(&escaped);
+                                }
+                                Err(_) => {
+                                    output.push_str("    ");
+                                    output.push_str(line);
+                                }
+                            }
+                        }
+                    } else {
+                        current_paragraph.push_str(&text);
+                    }
+                }
+                Event::SoftBreak => {
+                    current_paragraph.push(' ');
+                }
+                Event::HardBreak => {
+                    self.flush_paragraph(&mut output, &mut current_paragraph);
+                    output.push('\n');
+                }
+                _ => {}
             }
         }
-        current.clear();
+
+        self.flush_paragraph(&mut output, &mut current_paragraph);
+        output.trim_end().to_string()
+    }
+
+    fn flush_paragraph(&self, output: &mut String, current: &mut String) {
+        if !current.is_empty() {
+            if current.starts_with('•') {
+                // For list items, use special indentation
+                let mut list_options = self.wrap_options.clone();
+                list_options.initial_indent = "  ";  // 2 spaces for initial bullet
+                list_options.subsequent_indent = "    "; // 4 spaces for wrapped lines
+                for line in wrap(current, &list_options) {
+                    output.push_str(&line);
+                    output.push('\n');
+                }
+            } else {
+                // For normal paragraphs
+                for line in wrap(current, &self.wrap_options) {
+                    output.push_str(&line);
+                    output.push('\n');
+                }
+            }
+            current.clear();
+        }
     }
 }
 
@@ -194,15 +242,11 @@ async fn chat_loop(client: MistralClient) -> Result<()> {
         None => 80,
     };
 
-    let wrap_options = Options::new(width)
-        .initial_indent("  ")
-        .subsequent_indent("  ");
+    let renderer = MarkdownRenderer::new(width);
 
-    // Print wrapped welcome message
-    let welcome_msg = "Welcome to Mistral Chat!\n\nAvailable commands:\n  • exit  - quit the application\n  • clear - clear the screen\n  • new   - start a fresh conversation\n\nType your message:";
-    for line in wrap(welcome_msg, &wrap_options) {
-        println!("{}", line.green());
-    }
+    // Print wrapped welcome message with markdown list
+    let welcome_msg = "Welcome to Mistral Chat!\n\nAvailable commands:\n* `exit` - quit the application\n* `clear` - clear the screen\n* `new` - start a fresh conversation\n\nType your message:";
+    println!("{}", renderer.render(welcome_msg).green());
     println!();
 
     // Configure rustyline editor with history
@@ -255,33 +299,28 @@ async fn chat_loop(client: MistralClient) -> Result<()> {
 
                 match client.send_message(messages.clone()).await {
                     Ok(response) => {
-                        // Clear the screen and print from the top
                         clearscreen::clear()?;
                         
-                        // Print the user's question
                         print!("{}", "> ".blue().bold());
                         println!("{}", input);
                         println!();
                         
-                        // Print the response with markdown rendering
-                        let rendered_response = render_markdown(&response, &wrap_options);
-                        print!("{}", rendered_response.cyan());
+                        print!("{}", renderer.render(&response).cyan());
                         println!();
-                        println!();  // Add extra line break
+                        println!();
 
                         messages.push(ChatMessage {
                             role: "assistant".to_string(),
                             content: response,
                         });
                         
-                        // Print prompt for next input
                         print!("{}", "> ".blue().bold());
                         io::stdout().flush()?;
                     }
                     Err(e) => {
                         print!("\r{}\r", " ".repeat(width)); // Clear "Thinking..." line
                         println!();
-                        for line in wrap(&format!("Error: {}", e), &wrap_options) {
+                        for line in wrap(&format!("Error: {}", e), &renderer.wrap_options) {
                             println!("{}", line.red());
                         }
                         println!();

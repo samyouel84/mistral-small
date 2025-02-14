@@ -17,4 +17,5 @@ terminal_size = "0.3"
 rustyline = "13.0"
 clearscreen = "2.0"
 dirs = "5.0"
-pulldown-cmark = "0.9" 
+pulldown-cmark = "0.9"
+syntect = { version = "5.1", features = ["default-fancy"] } 
