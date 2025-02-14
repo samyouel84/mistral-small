@@ -9,6 +9,11 @@ A lightning-fast command-line interface for chatting with Mistral AI's language 
 - Command history with persistence
 - Smart text wrapping for readability
 - Secure API key handling via environment variables
+- Rich markdown rendering support:
+  - Code blocks
+  - Lists
+  - Bold and italic text
+  - Inline code
 
 ## Prerequisites
 

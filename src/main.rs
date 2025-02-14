@@ -75,10 +75,13 @@ fn render_markdown(text: &str, wrap_options: &Options) -> String {
     let parser = Parser::new(text);
     let mut output = String::new();
     let mut in_code_block = false;
+    let mut in_list = false;
+    let mut current_paragraph = String::new();
 
     for event in parser {
         match event {
             Event::Start(Tag::CodeBlock(_)) => {
+                flush_paragraph(&mut output, &mut current_paragraph, wrap_options);
                 in_code_block = true;
                 output.push('\n');
             }
@@ -87,30 +90,47 @@ fn render_markdown(text: &str, wrap_options: &Options) -> String {
                 output.push('\n');
             }
             Event::Start(Tag::List(_)) => {
-                output.push('\n');
+                flush_paragraph(&mut output, &mut current_paragraph, wrap_options);
+                in_list = true;
             }
             Event::End(Tag::List(_)) => {
+                in_list = false;
                 output.push('\n');
             }
             Event::Start(Tag::Item) => {
-                output.push_str("• ");
+                flush_paragraph(&mut output, &mut current_paragraph, wrap_options);
+                current_paragraph.push_str("• ");
+            }
+            Event::End(Tag::Item) => {
+                flush_paragraph(&mut output, &mut current_paragraph, wrap_options);
+            }
+            Event::Start(Tag::Paragraph) => {
+                if !current_paragraph.is_empty() {
+                    flush_paragraph(&mut output, &mut current_paragraph, wrap_options);
+                }
+            }
+            Event::End(Tag::Paragraph) => {
+                flush_paragraph(&mut output, &mut current_paragraph, wrap_options);
+                if !in_list {
+                    output.push('\n');
+                }
             }
             Event::Start(Tag::Emphasis) => {
-                output.push_str("\x1B[3m"); // Italic
+                current_paragraph.push_str("\x1B[3m"); // Italic
             }
             Event::End(Tag::Emphasis) => {
-                output.push_str("\x1B[23m"); // Reset italic
+                current_paragraph.push_str("\x1B[23m"); // Reset italic
             }
             Event::Start(Tag::Strong) => {
-                output.push_str("\x1B[1m"); // Bold
+                current_paragraph.push_str("\x1B[1m"); // Bold
             }
             Event::End(Tag::Strong) => {
-                output.push_str("\x1B[22m"); // Reset bold
+                current_paragraph.push_str("\x1B[22m"); // Reset bold
             }
             Event::Code(text) => {
-                output.push('`');
-                output.push_str(&text);
-                output.push('`');
+                current_paragraph.push('`');
+                current_paragraph.push_str(&text);
+                current_paragraph.push('`');
             }
             Event::Text(text) => {
                 if in_code_block {
@@ -121,19 +141,45 @@ fn render_markdown(text: &str, wrap_options: &Options) -> String {
                         output.push('\n');
                     }
                 } else {
-                    output.push_str(&text);
+                    current_paragraph.push_str(&text);
                 }
             }
             Event::SoftBreak => {
-                output.push(' ');
+                current_paragraph.push(' ');
             }
             Event::HardBreak => {
+                flush_paragraph(&mut output, &mut current_paragraph, wrap_options);
                 output.push('\n');
             }
             _ => {}
         }
     }
-    output.trim().to_string()
+
+    // Handle any remaining text
+    flush_paragraph(&mut output, &mut current_paragraph, wrap_options);
+    output.trim_end().to_string()
+}
+
+fn flush_paragraph(output: &mut String, current: &mut String, wrap_options: &Options) {
+    if !current.is_empty() {
+        if current.starts_with('•') {
+            // For list items, use special indentation
+            let mut list_options = wrap_options.clone();
+            list_options.initial_indent = "  ";  // 2 spaces for initial bullet
+            list_options.subsequent_indent = "    "; // 4 spaces for wrapped lines
+            for line in wrap(current, &list_options) {
+                output.push_str(&line);
+                output.push('\n');
+            }
+        } else {
+            // For normal paragraphs
+            for line in wrap(current, wrap_options) {
+                output.push_str(&line);
+                output.push('\n');
+            }
+        }
+        current.clear();
+    }
 }
 
 async fn chat_loop(client: MistralClient) -> Result<()> {
@@ -219,22 +265,9 @@ async fn chat_loop(client: MistralClient) -> Result<()> {
                         
                         // Print the response with markdown rendering
                         let rendered_response = render_markdown(&response, &wrap_options);
-                        let response_lines: Vec<_> = rendered_response.lines().collect();
-                        
-                        for line in response_lines {
-                            if line.trim().is_empty() {
-                                println!();
-                            } else if line.starts_with("    ") {
-                                // Don't wrap code blocks
-                                println!("{}", line.cyan());
-                            } else {
-                                // Wrap all other lines
-                                for wrapped_line in wrap(line, &wrap_options) {
-                                    println!("{}", wrapped_line.cyan());
-                                }
-                            }
-                        }
+                        print!("{}", rendered_response.cyan());
                         println!();
+                        println!();  // Add extra line break
 
                         messages.push(ChatMessage {
                             role: "assistant".to_string(),
