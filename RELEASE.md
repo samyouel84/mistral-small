@@ -1,5 +1,48 @@
 # Release Notes
 
+## Version 0.4.0 (2025-02-16)
+
+### Major Features
+- Implemented custom welcome message
+  - More professional and focused introduction
+  - Clear description of capabilities
+  - Improved initial user experience
+
+### Improvements
+- Enhanced documentation
+  - Reorganized README.md with clearer structure
+  - Added comprehensive example interactions
+  - Improved installation and usage instructions
+  - Updated feature descriptions
+  - Added Mistral AI integration section
+
+### User Experience
+- Streamlined initial interaction
+- More intuitive command descriptions
+- Better organized help information
+- Clearer API key requirement documentation
+
+### Technical Updates
+- Removed API call for welcome message
+- Improved message rendering efficiency
+- Updated license file references
+- Enhanced contribution guidelines
+
+## Version 0.3.0 (2025-02-15)
+
+### Major Features
+- Added support for Markdown tables with alignment
+  - Left, right, and center column alignment
+  - Unicode box-drawing characters for better visual presentation
+  - Automatic column width calculation
+  - Support for multi-line table cells
+
+### Improvements
+- Enhanced markdown rendering capabilities
+- Better handling of complex markdown structures
+- Improved text wrapping in table cells
+- Added table examples in documentation
+
 ## Version 0.2.0 (2025-02-14)
 
 ### Major Features
