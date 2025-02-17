@@ -1,14 +1,22 @@
 # Release Notes
 
-## Version 0.4.0 (2025-02-16)
+## Version 0.3.0 (2025-02-16)
 
 ### Major Features
 - Implemented custom welcome message
   - More professional and focused introduction
   - Clear description of capabilities
   - Improved initial user experience
+- Added support for Markdown tables with alignment
+  - Left, right, and centre column alignment
+  - Unicode box-drawing characters for better visual presentation
+  - Automatic column width calculation
+  - Support for multi-line table cells
 
 ### Improvements
+- Enhanced markdown rendering capabilities
+- Better handling of complex markdown structures
+- Improved text wrapping in table cells
 - Enhanced documentation
   - Reorganised README.md with clearer structure
   - Added comprehensive example interactions
@@ -28,22 +36,7 @@
 - Updated licence file references
 - Enhanced contribution guidelines
 
-## Version 0.3.0 (2025-02-15)
-
-### Major Features
-- Added support for Markdown tables with alignment
-  - Left, right, and centre column alignment
-  - Unicode box-drawing characters for better visual presentation
-  - Automatic column width calculation
-  - Support for multi-line table cells
-
-### Improvements
-- Enhanced markdown rendering capabilities
-- Better handling of complex markdown structures
-- Improved text wrapping in table cells
-- Added table examples in documentation
-
-## Version 0.2.0 (2025-02-14)
+## Version 0.2.0 (2025-02-15)
 
 ### Major Features
 - Added comprehensive syntax highlighting support for 50+ programming languages
