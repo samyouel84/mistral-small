@@ -1025,14 +1025,25 @@ impl MarkdownRenderer {
     fn flush_paragraph(&self, output: &mut String, current: &mut String) {
         if !current.is_empty() {
             if current.starts_with('•') {
-                // For list items, use special indentation
-                let mut list_options = self.wrap_options.clone();
-                list_options.initial_indent = "  ";  // 2 spaces for initial bullet
-                list_options.subsequent_indent = "    "; // 4 spaces for wrapped lines
-                for line in wrap(current, &list_options) {
-                    output.push_str(&line);
-                    output.push('\n');
+                // Split the current paragraph by bullet points
+                let items: Vec<&str> = current.split("•").collect();
+                for (i, item) in items.iter().enumerate() {
+                    if i > 0 { // Skip the empty string before the first bullet
+                        let trimmed_item = item.trim();
+                        if !trimmed_item.is_empty() {
+                            let mut list_options = self.wrap_options.clone();
+                            list_options.initial_indent = "  • ";  // Indent with bullet
+                            list_options.subsequent_indent = "    "; // 4 spaces for wrapped lines
+
+                            // Wrap each list item separately
+                            for line in wrap(trimmed_item, &list_options) {
+                                output.push_str(&line);
+                                output.push('\n');
+                            }
+                        }
+                    }
                 }
+
             } else {
                 // For normal paragraphs
                 for line in wrap(current, &self.wrap_options) {
@@ -1077,9 +1088,9 @@ async fn chat_loop(client: MistralClient) -> Result<()> {
     // Show initial welcome message
     clearscreen::clear()?;
     if messages.is_empty() {
-        let welcome_message = " I am Mistral Chat AI, a helpful and respectful assistant\n  powered by Mistral. Here are some ways I can assist you:\n\n• Provide information and answer questions on a wide\n    range of topics\n• Generate ideas, suggestions, and recommendations\n\n I'm ready to help! How can I assist you today?";
-        
-        print!("{}", renderer.render(welcome_message).cyan());
+        let welcome_message = "I am Mistral Chat AI, a helpful and respectful assistant\npowered by Mistral. Here are some ways I can assist you:\n\n• Provide information and answer questions on a wide\nrange of topics\n• Generate ideas, suggestions, and recommendations\n\nI'm ready to help! How can I assist you today?";
+
+        print!("{}", renderer.render(&welcome_message).cyan());
         println!("\n");
         show_command_box();
         print!("{}", "> ".blue().bold());
