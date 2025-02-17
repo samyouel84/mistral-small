@@ -26,7 +26,7 @@ A command-line interface for interacting with Mistral AI's language models, feat
 * 📝 **Markdown Rendering**
   * Beautiful terminal formatting
   * Support for:
-    - Tables with alignment (left, right, center)
+    - Tables with alignment (left, right, centre)
     - Lists and nested lists
     - Code blocks with syntax highlighting
     - Text emphasis (bold, italic)
@@ -37,7 +37,7 @@ A command-line interface for interacting with Mistral AI's language models, feat
   * Command history with persistent storage
   * Clear screen and conversation management
   * Proper terminal width detection
-  * Color-coded output
+  * Colour-coded output
   * Intuitive command interface
 
 ## Installation
@@ -107,13 +107,13 @@ The application stores its configuration in:
 ## Requirements
 
 * Rust 1.70 or higher
-* Terminal with ANSI color support
+* Terminal with ANSI colour support
 * Internet connection for API access
 * Mistral API key
 
-## License
+## Licence
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT Licence - see the LICENCE file for details.
 
 ## Author
 
