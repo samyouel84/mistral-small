@@ -47,6 +47,7 @@ A command-line interface for interacting with Mistral AI's language models, feat
 3. Create a `.env` file with your Mistral API key:
    ```
    MISTRAL_API_KEY=your_api_key_here
+   MISTRAL_MODEL=mistral-small   # optional, defaults to mistral-small
    ```
 4. Build and run:
    ```bash
